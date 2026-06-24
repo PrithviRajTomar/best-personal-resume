@@ -1,0 +1,803 @@
+/* =================================================================
+   DESIGN TOKENS
+   Palette: paper background, ink text, brass accent, pine secondary.
+   Chosen to feel like a study/atelier rather than a SaaS dashboard —
+   deliberately avoiding the cream+terracotta combo that's become a
+   generic "AI portfolio" default.
+================================================================== */
+:root {
+  --paper:      #F7F5F0;   /* base background */
+  --paper-dim:  #EFEBE2;   /* secondary panel background */
+  --ink:        #1C1B19;   /* primary text */
+  --ink-soft:   #4A4742;   /* secondary text */
+  --brass:      #8C7A5C;   /* accent — engraving, links, highlights */
+  --brass-deep: #6B5B3F;   /* darker brass for hover states */
+  --pine:       #2E4034;   /* secondary accent — depth, contrast blocks */
+  --rule:       #D8D2C4;   /* hairline borders / dividers */
+  --paper-rgb:  247, 245, 240;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body:    "Inter", -apple-system, sans-serif;
+  --font-mono:    "Space Mono", monospace;
+
+  --spine-w: 220px;        /* width of the fixed left navigation */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* =================================================================
+   RESET & BASE
+================================================================== */
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a { color: inherit; text-decoration: none; }
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Respect reduced-motion preferences across the whole site */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visible keyboard focus everywhere — accessibility floor */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--brass-deep);
+  outline-offset: 3px;
+}
+
+/* =================================================================
+   LOADER
+   Brief curtain so the Three.js scene has a beat to initialize.
+================================================================== */
+#loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.6s var(--ease), visibility 0.6s var(--ease);
+}
+#loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.loader-mark {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  letter-spacing: 0.08em;
+  color: var(--brass);
+  animation: loaderPulse 1.1s ease-in-out infinite;
+}
+@keyframes loaderPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* =================================================================
+   SPINE NAVIGATION
+   Fixed vertical index replacing a conventional top navbar.
+================================================================== */
+.spine {
+  position: fixed;
+  top: 0; left: 0;
+  width: var(--spine-w);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2.5rem 1.75rem;
+  border-right: 1px solid var(--rule);
+  z-index: 1000;
+  background: var(--paper);
+}
+
+.spine-mark {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-style: italic;
+  color: var(--ink);
+  width: fit-content;
+}
+
+.spine-list {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+.spine-list a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  transition: color 0.3s var(--ease);
+}
+
+/* The little tick that grows into a line when a section is active —
+   gives the index a sense of "you are here" without an icon set */
+.spine-line {
+  width: 10px; height: 1px;
+  background: var(--ink-soft);
+  transition: width 0.35s var(--ease), background 0.35s var(--ease);
+}
+
+.spine-list a.active,
+.spine-list a:hover {
+  color: var(--ink);
+}
+.spine-list a.active .spine-line {
+  width: 28px;
+  background: var(--brass);
+}
+.spine-list a:hover .spine-line {
+  background: var(--brass);
+}
+
+.spine-resume {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--brass-deep);
+  border-top: 1px solid var(--rule);
+  padding-top: 1rem;
+  width: fit-content;
+}
+.spine-resume:hover { color: var(--ink); }
+
+/* Mobile top bar — replaces the spine under 900px */
+.mobile-bar {
+  display: none;
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  padding: 1rem 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.mobile-mark { font-family: var(--font-display); font-style: italic; font-size: 1.1rem; }
+
+.mobile-toggle {
+  background: none; border: none; padding: 0.25rem;
+  display: flex; flex-direction: column; gap: 5px;
+  cursor: pointer;
+}
+.mobile-toggle span { width: 22px; height: 1.5px; background: var(--ink); display: block; }
+
+.mobile-menu {
+  display: none;
+  position: fixed;
+  top: 57px; left: 0; right: 0;
+  z-index: 999;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  list-style: none;
+  margin: 0; padding: 1rem 1.25rem 1.5rem;
+  flex-direction: column;
+  gap: 1rem;
+}
+.mobile-menu.is-open { display: flex; }
+.mobile-menu a {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 900px) {
+  .spine { display: none; }
+  .mobile-bar { display: flex; }
+  :root { --spine-w: 0px; }
+}
+
+/* =================================================================
+   LAYOUT SHELL
+================================================================== */
+main {
+  margin-left: var(--spine-w);
+}
+@media (max-width: 900px) {
+  main { margin-left: 0; padding-top: 57px; }
+}
+
+.section {
+  min-height: 100vh;
+  padding: 6rem 4vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+}
+@media (max-width: 700px) {
+  .section { padding: 5rem 6vw; }
+}
+
+/* Scroll-reveal: sections fade/lift into place rather than slide,
+   for a calmer "page turn" feel instead of a flashy entrance */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.9s var(--ease), transform 0.9s var(--ease);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brass-deep);
+  margin-bottom: 0.75rem;
+}
+
+.section-head { margin-bottom: 3rem; }
+.section-head--row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.section-title {
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 400;
+}
+
+/* Buttons used across sections */
+.btn-ink, .btn-ghost {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  padding: 0.85rem 1.6rem;
+  border-radius: 2px;
+  display: inline-block;
+  transition: all 0.3s var(--ease);
+  cursor: pointer;
+  border: 1px solid var(--ink);
+}
+.btn-ink {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn-ink:hover { background: var(--brass-deep); border-color: var(--brass-deep); }
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  margin-left: 0.75rem;
+}
+.btn-ghost:hover { border-color: var(--brass); color: var(--brass-deep); }
+
+/* =================================================================
+   1. ABOUT — hero
+================================================================== */
+.section--about { padding-top: 8rem; }
+
+.about-copy { padding-right: 2rem; }
+
+.display-name {
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  line-height: 0.98;
+  margin-bottom: 1.25rem;
+}
+.display-name em { font-style: italic; color: var(--brass-deep); }
+
+.about-role {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  color: var(--pine);
+  margin-bottom: 1.5rem;
+}
+
+.about-lede {
+  max-width: 480px;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin-bottom: 2.25rem;
+}
+
+.about-meta {
+  display: flex;
+  gap: 2.5rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+.meta-item { display: flex; flex-direction: column; gap: 0.3rem; }
+.meta-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.meta-value { font-size: 0.95rem; }
+
+/* 3D stage holding the Three.js canvas */
+.about-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.plaque-canvas {
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 1 / 1;
+  cursor: grab;
+}
+.plaque-canvas:active { cursor: grabbing; }
+.stage-caption {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  margin-top: 0.5rem;
+  letter-spacing: 0.02em;
+}
+
+.scroll-cue {
+  position: absolute;
+  bottom: 2rem; left: 4vw;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.scroll-cue span {
+  width: 1px; height: 26px;
+  background: var(--ink-soft);
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+.scroll-cue span::after {
+  content: "";
+  position: absolute;
+  top: -100%; left: 0; right: 0;
+  height: 100%;
+  background: var(--brass);
+  animation: cueDrop 1.8s ease-in-out infinite;
+}
+@keyframes cueDrop {
+  0% { top: -100%; }
+  60%, 100% { top: 100%; }
+}
+
+/* =================================================================
+   2. EDUCATION — ledger / ruler timeline
+================================================================== */
+.ledger {
+  list-style: none;
+  margin: 0; padding: 0;
+  border-top: 1px solid var(--rule);
+  max-width: 920px;
+}
+
+.ledger-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2.5rem;
+  padding: 2.25rem 0;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+}
+@media (max-width: 700px) {
+  .ledger-row { grid-template-columns: 1fr; gap: 0.75rem; }
+}
+
+.ledger-when {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.ledger-year {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+/* The tick mark — a small brass dash that grows on hover, echoing
+   the spine nav's "active" tick for a consistent visual language */
+.ledger-tick {
+  width: 18px; height: 1px;
+  background: var(--brass);
+  transition: width 0.35s var(--ease);
+}
+.ledger-row:hover .ledger-tick { width: 34px; }
+
+.ledger-what h3 {
+  font-size: 1.4rem;
+  margin-bottom: 0.4rem;
+}
+.ledger-org {
+  color: var(--pine);
+  font-size: 0.92rem;
+  margin: 0 0 0.6rem;
+}
+.ledger-detail {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  max-width: 560px;
+  margin: 0 0 0.9rem;
+}
+.ledger-tags { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.ledger-tags span {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  padding: 0.3rem 0.65rem;
+  background: var(--paper-dim);
+  color: var(--ink-soft);
+  border-radius: 2px;
+}
+
+/* =================================================================
+   3. SKILLS & CERTIFICATES
+================================================================== */
+.skill-filters {
+  display: flex; gap: 0.6rem; margin-bottom: 1.75rem; flex-wrap: wrap;
+}
+.filter-chip {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--rule);
+  background: transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  transition: all 0.25s var(--ease);
+}
+.filter-chip:hover { border-color: var(--brass); color: var(--ink); }
+.filter-chip.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.skill-list { list-style: none; margin: 0; padding: 0; }
+.skill-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 48px;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--rule);
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+}
+.skill-row.is-hidden {
+  display: none;
+}
+.skill-name { font-size: 0.92rem; }
+.skill-bar {
+  height: 4px;
+  background: var(--paper-dim);
+  border-radius: 2px;
+  overflow: hidden;
+}
+/* Fill width is driven by JS via inline style / CSS var on scroll-into-view,
+   so bars animate once rather than on every render */
+.skill-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--brass);
+  border-radius: 2px;
+  transition: width 1.1s var(--ease);
+}
+.skill-pct {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.cert-heading {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-bottom: 1.25rem;
+}
+
+.cert-rack {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Flip-card "stamp": front shows title, back shows issuer/date.
+   Built with a 3D CSS transform — a deliberate nod to a wax seal flip. */
+.cert-stamp {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  perspective: 1000px;
+  height: 130px;
+}
+.cert-stamp .cert-face {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%; height: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  backface-visibility: hidden;
+  transition: transform 0.6s var(--ease);
+  text-align: center;
+  padding: 0.75rem;
+}
+.cert-front {
+  background: var(--paper-dim);
+  transform: rotateY(0deg);
+}
+.cert-back {
+  background: var(--pine);
+  color: var(--paper);
+  position: absolute; top: 0; left: 0;
+  transform: rotateY(-180deg);
+}
+.cert-stamp.is-flipped .cert-front { transform: rotateY(180deg); }
+.cert-stamp.is-flipped .cert-back { transform: rotateY(0deg); }
+
+.cert-icon { font-size: 1.1rem; color: var(--brass); }
+.cert-title { font-size: 0.82rem; line-height: 1.3; }
+.cert-issuer { font-size: 0.85rem; font-family: var(--font-mono); }
+.cert-date { font-size: 0.72rem; opacity: 0.75; }
+
+@media (max-width: 500px) {
+  .cert-rack { grid-template-columns: 1fr; }
+  .cert-stamp { height: 100px; }
+}
+
+/* =================================================================
+   4. PROJECTS — filmstrip gallery
+================================================================== */
+.filmstrip-controls { display: flex; gap: 0.5rem; }
+.strip-btn {
+  width: 38px; height: 38px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.25s var(--ease);
+}
+.strip-btn:hover { border-color: var(--brass); background: var(--paper-dim); }
+
+.filmstrip {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass) var(--paper-dim);
+}
+.filmstrip::-webkit-scrollbar { height: 6px; }
+.filmstrip::-webkit-scrollbar-track { background: var(--paper-dim); }
+.filmstrip::-webkit-scrollbar-thumb { background: var(--brass); border-radius: 3px; }
+
+.reel-card {
+  flex: 0 0 320px;
+  height: 380px;
+  scroll-snap-align: start;
+  perspective: 1400px;
+}
+@media (max-width: 500px) {
+  .reel-card { flex-basis: 78vw; height: 360px; }
+}
+
+.reel-inner {
+  position: relative;
+  width: 100%; height: 100%;
+  transition: transform 0.7s var(--ease);
+  transform-style: preserve-3d;
+  cursor: pointer;
+}
+.reel-card.is-flipped .reel-inner { transform: rotateY(180deg); }
+
+.reel-face {
+  position: absolute; inset: 0;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 2rem;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.reel-front {
+  background: var(--paper-dim);
+  justify-content: space-between;
+}
+.reel-number {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--brass-deep);
+}
+.reel-front h3 {
+  font-size: 1.55rem;
+  margin: 1.5rem 0 0.75rem;
+}
+.reel-tagline { color: var(--ink-soft); font-size: 0.92rem; }
+.reel-flip-hint {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.03em;
+}
+
+.reel-back {
+  background: var(--ink);
+  color: var(--paper);
+  transform: rotateY(180deg);
+  justify-content: space-between;
+}
+.reel-back h4 { font-size: 1.25rem; margin-bottom: 0.75rem; }
+.reel-back p { color: #D9D6CE; font-size: 0.9rem; flex: 1; }
+.reel-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.reel-tags span {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(247,245,240,0.25);
+  border-radius: 999px;
+}
+.reel-link {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--brass);
+  width: fit-content;
+}
+.reel-link:hover { color: var(--paper); }
+
+/* =================================================================
+   5. CONTACT
+================================================================== */
+.contact-lede {
+  color: var(--ink-soft);
+  max-width: 420px;
+  margin-bottom: 2.5rem;
+}
+.contact-direct { list-style: none; margin: 0; padding: 0; }
+.contact-direct li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.contact-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.contact-direct a { font-size: 1.05rem; transition: color 0.25s var(--ease); }
+.contact-direct a:hover { color: var(--brass-deep); }
+.contact-socials a { font-size: 0.95rem; }
+
+/* Minimal underline form fields — no boxes, no borders, just a rule
+   that fills with brass on focus */
+.contact-form { max-width: 560px; }
+.field {
+  position: relative;
+  margin-bottom: 2.1rem;
+}
+.field input, .field textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  padding: 0.6rem 0.1rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--ink);
+  resize: none;
+}
+.field textarea { padding-top: 0.8rem; }
+.field input:focus, .field textarea:focus { outline: none; }
+
+.field label {
+  position: absolute;
+  left: 0.1rem; top: 0.6rem;
+  font-size: 1rem;
+  color: var(--ink-soft);
+  pointer-events: none;
+  transition: all 0.25s var(--ease);
+}
+.field--area label { top: 0.8rem; }
+
+/* Float label up when input has focus or content (via :placeholder-shown trick) */
+.field input:focus ~ label,
+.field input:not(:placeholder-shown) ~ label,
+.field textarea:focus ~ label,
+.field textarea:not(:placeholder-shown) ~ label {
+  top: -0.85rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--brass-deep);
+}
+
+/* Animated underline that draws in from the center on focus */
+.field-line {
+  position: absolute;
+  bottom: 0; left: 50%;
+  width: 0; height: 2px;
+  background: var(--brass);
+  transition: all 0.35s var(--ease);
+}
+.field input:focus ~ .field-line,
+.field textarea:focus ~ .field-line {
+  width: 100%; left: 0;
+}
+
+.btn-submit {
+  position: relative;
+  overflow: hidden;
+  min-width: 200px;
+}
+.btn-sent {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--pine);
+  color: var(--paper);
+  transform: translateY(100%);
+  transition: transform 0.4s var(--ease);
+}
+.btn-submit.is-sent .btn-sent { transform: translateY(0); }
+.form-note {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  margin-top: 0.9rem;
+  min-height: 1.2em;
+}
+
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+}
